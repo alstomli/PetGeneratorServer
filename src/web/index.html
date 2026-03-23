@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kid-Friendly Pet Evolution Tester</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 30px 0; padding: 20px; border: 1px solid #ccc; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea, select { width: 300px; padding: 8px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background: #007cba; color: white; border: none; cursor: pointer; margin-right: 10px; }
+        button:hover { background: #005a87; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        button.secondary { background: #6c757d; }
+        button.secondary:hover { background: #545b62; }
+        .result { margin: 20px 0; }
+        .pet-image { max-width: 400px; margin: 10px 0; border: 1px solid #ddd; }
+        .drop-zone { border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 20px 0; }
+        .drop-zone.dragover { border-color: #007cba; background: #f0f8ff; }
+        .error { color: red; margin: 10px 0; }
+        .success { color: green; margin: 10px 0; }
+        .loading {
+            color: #666;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007cba;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .pet-info { background: #f9f9f9; padding: 15px; margin: 10px 0; }
+        .json-display { background: #f5f5f5; padding: 10px; border: 1px solid #ddd; font-family: monospace; white-space: pre-wrap; }
+        .history-grid { display: flex; flex-direction: column; gap: 10px; }
+        .history-item { border: 1px solid #ddd; padding: 15px; background: #f9f9f9; }
+        .history-item img { max-width: 100%; height: auto; }
+        .history-item .timestamp { color: #666; font-size: 12px; }
+        .history-controls { margin: 20px 0; }
+        .quick-actions { display: flex; gap: 10px; margin: 15px 0; }
+        .random-button { background: #28a745; }
+        .random-button:hover { background: #218838; }
+
+        /* Pet card and family tree styles */
+        .family-tree {
+            border: 2px solid #007cba;
+            border-radius: 8px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            overflow-x: auto;
+        }
+        .family-tree.merged-family {
+            border-color: #17a2b8;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e3f6fa 100%);
+        }
+        .family-tree.merged-family .family-tree-title {
+            color: #17a2b8;
+        }
+        .family-tree-title {
+            margin: 0 0 15px 0;
+            color: #007cba;
+            font-size: 16px;
+        }
+        .evolution-chain {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            min-width: fit-content;
+            padding: 10px 0;
+        }
+        .stage-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 300px;
+        }
+        .stage-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+        .stage-label-root { color: #28a745; }
+        .stage-label-evolution { color: #6c757d; }
+        .arrow-connector {
+            display: flex;
+            align-items: center;
+            margin: 0 10px;
+            font-size: 24px;
+            color: #007cba;
+        }
+        .pet-card {
+            border-radius: 8px;
+            margin: 5px;
+            padding: 15px;
+        }
+        .pet-card-root { border: 2px solid #28a745; }
+        .pet-card-evolution { border: 2px solid #6c757d; }
+        .pet-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .pet-card-meta {
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+        .pet-card-actions {
+            margin-top: 12px;
+            padding: 8px;
+            background: #f0f8ff;
+            border-radius: 6px;
+        }
+        .pet-card-actions-title {
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .evolution-btn-group {
+            margin-bottom: 8px;
+        }
+        .evolution-btn-group label {
+            font-size: 10px;
+            margin-bottom: 3px;
+            display: block;
+            font-weight: normal;
+        }
+        .btn-gentle { background: #28a745; color: white; border: none; border-radius: 3px; font-size: 9px; padding: 2px 5px; margin-right: 2px; cursor: pointer; }
+        .btn-bold { background: #dc3545; color: white; border: none; border-radius: 3px; font-size: 9px; padding: 2px 5px; margin-right: 2px; cursor: pointer; }
+        .btn-curious { background: #6f42c1; color: white; border: none; border-radius: 3px; font-size: 9px; padding: 2px 5px; margin-right: 2px; cursor: pointer; }
+        .btn-merge { background: #17a2b8; color: white; border: none; border-radius: 3px; font-size: 9px; padding: 2px 5px; margin-right: 2px; cursor: pointer; }
+        .btn-merge:hover { background: #138496; }
+        .btn-small { font-size: 10px; padding: 3px 6px; margin-right: 3px; }
+        .pet-image-container {
+            cursor: pointer;
+            position: relative;
+        }
+        .pet-image-container img {
+            max-width: 100%;
+            margin: 10px 0;
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+        .pet-image-container img:hover {
+            transform: scale(1.02);
+        }
+        .stage-badge {
+            position: absolute;
+            top: 15px;
+            right: 5px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+        .prompt-debug {
+            margin: 8px 0;
+            padding: 6px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 3px solid #007cba;
+        }
+        .prompt-debug-toggle {
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            color: #007cba;
+        }
+        .prompt-debug-content {
+            display: none;
+            margin-top: 6px;
+            font-size: 9px;
+            font-family: monospace;
+            background: #fff;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .max-evolution-msg {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        /* Section styling */
+        .generate-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid #007cba;
+        }
+        .generate-section-title {
+            margin: 0 0 15px 0;
+            color: #007cba;
+        }
+        .family-section {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid #28a745;
+        }
+        .family-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .family-section-title {
+            margin: 0;
+            color: #28a745;
+        }
+        .family-section-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .info-box {
+            padding: 8px;
+            background: #f0f8ff;
+            border: 1px solid #007cba;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #005a87;
+        }
+        .btn-danger { background: #dc3545; }
+        .text-muted { color: #666; }
+        .text-small { font-size: 12px; }
+
+        /* Merge panel styles */
+        .merge-section {
+            background: #e8f4fc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid #17a2b8;
+        }
+        .merge-section-title {
+            margin: 0 0 15px 0;
+            color: #17a2b8;
+        }
+        .merge-selection {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .merge-slot {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            border: 2px dashed #17a2b8;
+            border-radius: 8px;
+            text-align: center;
+            background: white;
+        }
+        .merge-slot.filled {
+            border-style: solid;
+        }
+        .merge-slot-label {
+            font-weight: bold;
+            color: #17a2b8;
+            margin-bottom: 10px;
+        }
+        .merge-slot-empty {
+            color: #999;
+            font-style: italic;
+        }
+        .merge-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .merge-button {
+            background: linear-gradient(135deg, #17a2b8, #6f42c1);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .merge-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
+        }
+        .merge-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .merge-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .merge-preview-title {
+            font-weight: bold;
+            color: #17a2b8;
+            margin-bottom: 8px;
+        }
+        .rare-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 12px;
+            animation: pulse 2s infinite;
+        }
+        .rare-legendary {
+            background: linear-gradient(135deg, #ffd700, #ff9900);
+            color: #333;
+        }
+        .rare-chromatic {
+            background: linear-gradient(135deg, #ff6b6b, #6b6bff, #6bff6b);
+            color: white;
+        }
+        .rare-elemental {
+            background: linear-gradient(135deg, #ff4444, #44aaff, #44ff44);
+            color: white;
+        }
+        .rare-celestial {
+            background: linear-gradient(135deg, #6f42c1, #000066);
+            color: white;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        .merge-btn-group {
+            margin-bottom: 8px;
+        }
+
+        /* Rarity badge styles */
+        .rarity-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-left: 5px;
+        }
+        .rarity-common {
+            background: #9e9e9e;
+            color: white;
+        }
+        .rarity-uncommon {
+            background: #4caf50;
+            color: white;
+        }
+        .rarity-rare {
+            background: #2196f3;
+            color: white;
+        }
+        .rarity-legendary {
+            background: #9c27b0;
+            color: white;
+        }
+        .rarity-mythical {
+            background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+            background-size: 200% 100%;
+            animation: rainbow-shift 3s linear infinite;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        @keyframes rainbow-shift {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        /* Parent thumbnail styles for merged pets */
+        .parent-thumbnails {
+            margin-top: 10px;
+            padding: 8px;
+            background: linear-gradient(135deg, #e3f6fa 0%, #f0f9ff 100%);
+            border-radius: 6px;
+            border: 1px solid #b8e6f0;
+        }
+        .parent-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #17a2b8;
+            margin-bottom: 6px;
+        }
+        .parent-images {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .parent-thumb {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #17a2b8;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .parent-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .parent-plus {
+            font-size: 20px;
+            font-weight: bold;
+            color: #17a2b8;
+        }
+
+        /* Augment display styles */
+        .augments-container {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f5f0ff;
+            border-radius: 6px;
+            border: 1px solid #e0d5f0;
+        }
+        .augments-title {
+            font-size: 10px;
+            font-weight: bold;
+            color: #6f42c1;
+            margin-bottom: 4px;
+        }
+        .augment-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .augment-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 9px;
+            cursor: help;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .augment-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .augment-badge.elemental {
+            background: linear-gradient(135deg, #ff6b35, #f7931a);
+            color: white;
+        }
+        .augment-badge.celestial {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        .augment-badge.nature {
+            background: linear-gradient(135deg, #56ab2f, #a8e063);
+            color: #1a3d00;
+        }
+        .augment-badge.spirit {
+            background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+            color: #4a2c6a;
+        }
+        .augment-badge.arcane {
+            background: linear-gradient(135deg, #4776e6, #8e54e9);
+            color: white;
+        }
+        .augment-icon {
+            font-size: 11px;
+        }
+        .augment-weight {
+            font-size: 8px;
+            opacity: 0.8;
+        }
+
+        /* Augment tooltip */
+        .augment-tooltip {
+            position: fixed;
+            z-index: 1000;
+            max-width: 280px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border: 2px solid #6f42c1;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .augment-tooltip.visible {
+            opacity: 1;
+        }
+        .augment-tooltip-title {
+            font-weight: bold;
+            color: #6f42c1;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        .augment-tooltip-story {
+            font-size: 11px;
+            color: #555;
+            font-style: italic;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        .augment-tooltip-effects {
+            font-size: 10px;
+            color: #333;
+        }
+        .augment-tooltip-effects strong {
+            color: #6f42c1;
+        }
+        .augment-tooltip-effects ul {
+            margin: 4px 0 0 15px;
+            padding: 0;
+        }
+        .augment-tooltip-effects li {
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kid-Friendly Pet Evolution Tester</h1>
+    <p><strong>Ages 7-11:</strong> Create amazing pets with simple choices! Pick a style, colors, and animals to make your dream pet!</p>
+
+    <!-- Single Combined View -->
+    <div class="section">
+        <h2>🐾 Pet Evolution Hub</h2>
+
+        <!-- Generate New Pet Section -->
+        <div class="generate-section">
+            <h3 class="generate-section-title">✨ Start New Pet Lineage</h3>
+            <form id="generateForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Pet Personality:</label>
+                        <select id="style" name="style">
+                            <option value="gentle">💚 Gentle - Caring, peaceful, warm</option>
+                            <option value="bold">🔥 Bold - Confident, fearless, adventurous</option>
+                            <option value="curious">✨ Curious - Inquisitive, mysterious, magical</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Color Palette:</label>
+                        <select id="colorPalette" name="colorPalette">
+                            <option value="random" selected>🎲 Random</option>
+                            <optgroup label="🔥 Warm Tones">
+                                <option value="sunset orange">🌅 Sunset Orange</option>
+                                <option value="golden sun">☀️ Golden Sun</option>
+                                <option value="cherry blossom pink">🌸 Cherry Blossom Pink</option>
+                                <option value="autumn leaves">🍂 Autumn Leaves</option>
+                                <option value="coral reef">🪸 Coral Reef</option>
+                                <option value="cinnamon spice">🫚 Cinnamon Spice</option>
+                            </optgroup>
+                            <optgroup label="❄️ Cool Tones">
+                                <option value="ocean blue">🌊 Ocean Blue</option>
+                                <option value="forest green">🌲 Forest Green</option>
+                                <option value="arctic ice">🧊 Arctic Ice</option>
+                                <option value="lavender dreams">💜 Lavender Dreams</option>
+                                <option value="mint fresh">🌿 Mint Fresh</option>
+                                <option value="slate storm">🌧️ Slate Storm</option>
+                            </optgroup>
+                            <optgroup label="🎨 Vibrant">
+                                <option value="rainbow bright">🌈 Rainbow Bright</option>
+                                <option value="neon electric">⚡ Neon Electric</option>
+                                <option value="tropical paradise">🏝️ Tropical Paradise</option>
+                                <option value="berry blast">🫐 Berry Blast</option>
+                            </optgroup>
+                            <optgroup label="✨ Magical/Dark">
+                                <option value="purple magic">🔮 Purple Magic</option>
+                                <option value="starry night">⭐ Starry Night</option>
+                                <option value="midnight galaxy">🌌 Midnight Galaxy</option>
+                                <option value="mystic moonlight">🌙 Mystic Moonlight</option>
+                            </optgroup>
+                            <optgroup label="🎀 Soft/Light">
+                                <option value="pink princess">👑 Pink Princess</option>
+                                <option value="cotton candy">🍭 Cotton Candy</option>
+                                <option value="pastel sunrise">🌄 Pastel Sunrise</option>
+                                <option value="cream vanilla">🍦 Cream Vanilla</option>
+                            </optgroup>
+                            <optgroup label="🌍 Earthy">
+                                <option value="mossy woodland">🍃 Mossy Woodland</option>
+                                <option value="desert sand">🏜️ Desert Sand</option>
+                                <option value="volcanic ember">🌋 Volcanic Ember</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Animal 1:</label>
+                        <select id="animal1" name="animal1">
+                            <option value="">Choose first animal (optional)</option>
+                            <optgroup label="🏠 Domestic Animals">
+                                <option value="cat">🐱 Cat</option>
+                                <option value="dog">🐶 Dog</option>
+                                <option value="bunny">🐰 Bunny</option>
+                                <option value="hamster">🐹 Hamster</option>
+                            </optgroup>
+                            <optgroup label="🌲 Forest Animals">
+                                <option value="fox">🦊 Fox</option>
+                                <option value="bear">🐻 Bear</option>
+                                <option value="deer">🦌 Deer</option>
+                                <option value="squirrel">🐿️ Squirrel</option>
+                                <option value="raccoon">🦝 Raccoon</option>
+                                <option value="wolf">🐺 Wolf</option>
+                            </optgroup>
+                            <optgroup label="🌊 Sea & Sky">
+                                <option value="bird">🐦 Bird</option>
+                                <option value="butterfly">🦋 Butterfly</option>
+                                <option value="owl">🦉 Owl</option>
+                                <option value="eagle">🦅 Eagle</option>
+                                <option value="dolphin">🐬 Dolphin</option>
+                                <option value="penguin">🐧 Penguin</option>
+                                <option value="seal">🦭 Seal</option>
+                                <option value="stingray">🟦 Stingray</option>
+                                <option value="crab">🦀 Crab</option>
+                                <option value="octopus">🐙 Octopus</option>
+                            </optgroup>
+                            <optgroup label="🦄 Mythical Creatures">
+                                <option value="dragon">🐉 Dragon</option>
+                                <option value="unicorn">🦄 Unicorn</option>
+                                <option value="phoenix">🔥 Phoenix</option>
+                                <option value="griffin">🦅 Griffin</option>
+                            </optgroup>
+                            <optgroup label="🌍 Exotic Animals">
+                                <option value="tiger">🐅 Tiger</option>
+                                <option value="lion">🦁 Lion</option>
+                                <option value="panda">🐼 Panda</option>
+                                <option value="elephant">🐘 Elephant</option>
+                                <option value="giraffe">🦒 Giraffe</option>
+                                <option value="monkey">🐵 Monkey</option>
+                                <option value="chameleon">🦎 Chameleon</option>
+                                <option value="kangaroo">🦘 Kangaroo</option>
+                                <option value="sloth">🦥 Sloth</option>
+                                <option value="armadillo">🌰 Armadillo</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Animal 2 (Optional):</label>
+                        <select id="animal2" name="animal2">
+                            <option value="">Choose second animal (optional)</option>
+                            <optgroup label="🏠 Domestic Animals">
+                                <option value="cat">🐱 Cat</option>
+                                <option value="dog">🐶 Dog</option>
+                                <option value="bunny">🐰 Bunny</option>
+                                <option value="hamster">🐹 Hamster</option>
+                            </optgroup>
+                            <optgroup label="🌲 Forest Animals">
+                                <option value="fox">🦊 Fox</option>
+                                <option value="bear">🐻 Bear</option>
+                                <option value="deer">🦌 Deer</option>
+                                <option value="squirrel">🐿️ Squirrel</option>
+                                <option value="raccoon">🦝 Raccoon</option>
+                                <option value="wolf">🐺 Wolf</option>
+                            </optgroup>
+                            <optgroup label="🌊 Sea & Sky">
+                                <option value="bird">🐦 Bird</option>
+                                <option value="butterfly">🦋 Butterfly</option>
+                                <option value="owl">🦉 Owl</option>
+                                <option value="eagle">🦅 Eagle</option>
+                                <option value="dolphin">🐬 Dolphin</option>
+                                <option value="penguin">🐧 Penguin</option>
+                                <option value="seal">🦭 Seal</option>
+                                <option value="stingray">🟦 Stingray</option>
+                                <option value="crab">🦀 Crab</option>
+                                <option value="octopus">🐙 Octopus</option>
+                            </optgroup>
+                            <optgroup label="🦄 Mythical Creatures">
+                                <option value="dragon">🐉 Dragon</option>
+                                <option value="unicorn">🦄 Unicorn</option>
+                                <option value="phoenix">🔥 Phoenix</option>
+                                <option value="griffin">🦅 Griffin</option>
+                            </optgroup>
+                            <optgroup label="🌍 Exotic Animals">
+                                <option value="tiger">🐅 Tiger</option>
+                                <option value="lion">🦁 Lion</option>
+                                <option value="panda">🐼 Panda</option>
+                                <option value="elephant">🐘 Elephant</option>
+                                <option value="giraffe">🦒 Giraffe</option>
+                                <option value="monkey">🐵 Monkey</option>
+                                <option value="chameleon">🦎 Chameleon</option>
+                                <option value="kangaroo">🦘 Kangaroo</option>
+                                <option value="sloth">🦥 Sloth</option>
+                                <option value="armadillo">🌰 Armadillo</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Evolution Stages: 3 (Baby → Juvenile → Adult)</label>
+                        <input type="hidden" id="maxStages" name="maxStages" value="3">
+                        <div class="info-box">
+                            Perfect progression: Baby (Stage 1) → Juvenile (Stage 2) → Adult (Stage 3)
+                        </div>
+                    </div>
+                </div>
+                <div class="quick-actions">
+                    <button type="submit">🐾 Generate New Pet</button>
+                    <button type="button" class="secondary" onclick="resetForm()">Reset Form</button>
+                    <button type="button" class="random-button" onclick="randomizeForm()">🎲 Random</button>
+                    <button type="button" class="btn-danger" onclick="generateCompleteEvolutionLine()">🧬 Generate Complete Evolution Line</button>
+                </div>
+            </form>
+            <div id="generateResult" class="result"></div>
+        </div>
+
+        <!-- Merge Panel Section -->
+        <div id="mergePanelContainer">
+            <!-- Merge panel will be rendered by JavaScript -->
+        </div>
+
+        <!-- Pet Family Tree Section -->
+        <div class="family-section">
+            <div class="family-section-header">
+                <h3 class="family-section-title">📚 Pet Family Trees</h3>
+                <div class="family-section-controls">
+                    <button onclick="clearHistory()" class="secondary btn-small">Clear All</button>
+                    <button onclick="exportHistory()" class="btn-small">Export</button>
+                    <span id="historyCount" class="text-small text-muted">0 generations saved</span>
+                </div>
+            </div>
+            <p class="text-muted" style="margin: 0 0 15px 0;">Click on any pet to evolve it or merge it! Watch your pet families grow across generations.</p>
+            <div id="historyContainer" class="history-grid">
+                <p>No generations yet. Start creating pets to see your history!</p>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="script.js"></script>
+</body>
+</html>
