@@ -16,6 +16,24 @@ export const createMergeRoutes = (petService, storageService) => {
   const router = Router();
 
   /**
+   * POST /api/google/merge-pets/full
+   * Merge two pets using full pet objects (no storage lookup required).
+   */
+  router.post('/full', asyncHandler(async (req, res) => {
+    const { pet1, pet2 } = req.body;
+
+    if (!pet1 || !pet2) {
+      return res.status(400).json({ error: 'Both pet1 and pet2 objects are required' });
+    }
+
+    const result = await petService.mergePets({ pet1, pet2 });
+
+    storageService.savePet(result.pet, { pet1Id: pet1.id, pet2Id: pet2.id });
+
+    res.json(result);
+  }));
+
+  /**
    * POST /api/google/merge-pets
    * Merge two pets together.
    */
