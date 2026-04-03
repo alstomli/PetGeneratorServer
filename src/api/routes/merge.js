@@ -28,8 +28,6 @@ export const createMergeRoutes = (petService, storageService) => {
 
     const result = await petService.mergePets({ pet1, pet2 });
 
-    storageService.savePet(result.pet, { pet1Id: pet1.id, pet2Id: pet2.id });
-
     res.json(result);
   }));
 
